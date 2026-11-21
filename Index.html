@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HRJ Dashboard Bluetooth</title>
+<style>
+:root{--bg:#0b0f14;--card:#151b23;--fg:#e8eef5;--dim:#8a97a6;--acc:#19d3ff;--good:#31d158;--warn:#ffc83d;--bad:#ff4d4d;--line:#263040}
+@media (prefers-color-scheme:light){:root{--bg:#f3f6fa;--card:#fff;--fg:#14202e;--dim:#5b6b7d;--acc:#0a8fb5;--good:#1b9e3e;--warn:#b57e00;--bad:#d62c2c;--line:#d5dde7}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:12px;max-width:760px;margin:auto}
+h1{font-size:18px;margin:0}
+h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 10px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--dim);margin-right:6px}
+.dot.on{background:var(--good)}
+#st{font-size:13px;color:var(--dim)}
+button{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--acc);color:#04222b;font-weight:600;cursor:pointer}
+button.sec{background:transparent;color:var(--fg);border:1px solid var(--line)}
+button:disabled{opacity:.4;cursor:not-allowed}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+#alert{display:none;background:var(--bad);color:#fff;font-weight:700;text-align:center;padding:10px;border-radius:12px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+.tile{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px}
+.tile small{display:block;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.tile b{font-size:24px;font-variant-numeric:tabular-nums}
+.tile.big{grid-column:span 2}.tile.big b{font-size:40px}
+.bar{height:8px;background:var(--line);border-radius:4px;margin-top:6px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.chip{font-size:12px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);color:var(--dim)}
+.chip.on{color:var(--fg);border-color:var(--good)}
+label{display:block;font-size:12px;color:var(--dim);margin:8px 0 3px}
+input,select{width:100%;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+#log{font:12px/1.5 ui-monospace,Consolas,monospace;max-height:200px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px;white-space:pre-wrap}
+.note{font-size:12px;color:var(--dim);margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>HRJ Dashboard</h1><div id="st"><span class="dot" id="dot"></span><span id="stx">Belum terhubung</span></div></div>
+  <div><button id="bc" onclick="connectBt()">Sambungkan</button> <button id="bd" class="sec" onclick="disc()" disabled>Putus</button></div>
+</header>
+<div id="alert"></div>
+
+<div class="card">
+  <h2>Data langsung dari motor</h2>
+  <div class="grid">
+    <div class="tile big"><small>Kecepatan (km/jam)</small><b id="s">--</b></div>
+    <div class="tile big"><small>RPM</small><b id="r">--</b><div class="bar"><i id="rb"></i></div></div>
+    <div class="tile"><small>TPS %</small><b id="t">--</b></div>
+    <div class="tile"><small>AFR</small><b id="a">--</b></div>
+    <div class="tile"><small>Aki (V)</small><b id="v">--</b></div>
+    <div class="tile"><small>EOT (C)</small><b id="e">--</b></div>
+    <div class="tile"><small>IAT (C)</small><b id="i">--</b></div>
+    <div class="tile"><small>EOT 60 dtk lagi</small><b id="ep">--</b></div>
+  </div>
+  <div class="chips"><span class="chip" id="cg">GPS</span><span class="chip" id="cm">Mist menyemprot</span><span class="chip" id="cs">Gaya: --</span></div>
+</div>
+
+<div class="card">
+  <h2>Musik</h2>
+  <label>Judul</label><input id="mt" maxlength="40" placeholder="Judul lagu">
+  <label>Artis</label><input id="ma" maxlength="40" placeholder="Nama artis">
+  <label><input type="checkbox" id="mp" checked style="width:auto"> Sedang diputar</label>
+  <div class="btns"><button onclick="sendMus()">Kirim ke dashboard</button></div>
+  <div class="note">Tombol prev/play/next di layar dashboard dikirim balik ke halaman ini (lihat log).</div>
+</div>
+
+<div class="card">
+  <h2>Navigasi</h2>
+  <div class="row">
+    <div><label>Arah</label><select id="na"><option value="S">Lurus</option><option value="L">Belok kiri</option><option value="R">Belok kanan</option><option value="U">Putar balik</option><option value="0">Tidak ada</option></select></div>
+    <div><label>Jarak</label><input id="nd" maxlength="12" placeholder="300 m"></div>
+  </div>
+  <label>Instruksi</label><input id="nt" maxlength="44" placeholder="Belok kiri ke Jl. Merdeka">
+  <label>ETA</label><input id="ne" maxlength="16" placeholder="ETA 12:30">
+  <div class="btns"><button onclick="sendNav()">Kirim</button><button class="sec" onclick="send('NAV|0|||')">Hapus navigasi</button></div>
+</div>
+
+<div class="card">
+  <h2>Notifikasi</h2>
+  <div class="row"><div><label>Aplikasi</label><input id="fa" maxlength="16" placeholder="WhatsApp"></div><div><label>Pengirim</label><input id="fj" maxlength="20" placeholder="Budi"></div></div>
+  <label>Isi pesan</label><input id="fi" maxlength="60" placeholder="Isi singkat pesan">
+  <div class="btns"><button onclick="sendNtf()">Kirim notifikasi</button></div>
+</div>
+
+<div class="card">
+  <h2>Telepon</h2>
+  <label>Nama penelepon</label><input id="cn" maxlength="24" placeholder="Nama / nomor">
+  <div class="btns"><button onclick="sendCall()">Telepon masuk</button><button class="sec" onclick="send('CALL|END')">Panggilan selesai</button></div>
+  <div class="note">Tombol Jawab/Tolak di dashboard dikirim balik ke halaman ini (lihat log).</div>
+</div>
+
+<div class="card">
+  <h2>Terminal</h2>
+  <div class="row" style="grid-template-columns:1fr auto"><input id="tc" placeholder="Baris perintah mentah, mis. MUS|1|Judul|Artis"><button onclick="send($('tc').value)">Kirim</button></div>
+  <div id="log" style="margin-top:10px"></div>
+</div>
+
+<script>
+const NUS='6e400001-b5a3-f393-e0a9-e50e24dcca9e', RXU='6e400002-b5a3-f393-e0a9-e50e24dcca9e', TXU='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+const $=id=>document.getElementById(id);
+const enc=new TextEncoder(), dec=new TextDecoder();
+let dev=null, rx=null, tx=null, buf='', q=Promise.resolve(), alertTimer=null;
+
+function log(t){const l=$('log');l.textContent+=new Date().toLocaleTimeString()+'  '+t+'\n';const a=l.textContent.split('\n');if(a.length>80)l.textContent=a.slice(-60).join('\n');l.scrollTop=l.scrollHeight}
+function setSt(on,t){$('dot').className='dot'+(on?' on':'');$('stx').textContent=t;$('bc').disabled=on;$('bd').disabled=!on}
+
+async function connectBt(){
+  if(!navigator.bluetooth){alert('Browser ini tidak mendukung Web Bluetooth. Pakai Chrome di Android atau komputer, lewat alamat https.');return}
+  try{
+    dev=await navigator.bluetooth.requestDevice({filters:[{services:[NUS]},{namePrefix:'HRJ'}],optionalServices:[NUS]});
+    dev.addEventListener('gattserverdisconnected',onDisc);
+    await openGatt();
+  }catch(err){log('Gagal: '+err.message);setSt(false,'Belum terhubung')}
+}
+async function openGatt(){
+  setSt(false,'Menghubungkan...');
+  const srv=await dev.gatt.connect();
+  const sv=await srv.getPrimaryService(NUS);
+  rx=await sv.getCharacteristic(RXU);
+  tx=await sv.getCharacteristic(TXU);
+  tx.addEventListener('characteristicvaluechanged',onData);
+  await tx.startNotifications();
+  buf='';
+  setSt(true,'Terhubung: '+(dev.name||'HRJ Dashboard'));
+  log('Terhubung');
+}
+function disc(){if(dev&&dev.gatt.connected)dev.gatt.disconnect()}
+async function onDisc(){
+  setSt(false,'Terputus. Mencoba menyambung lagi...');log('Terputus');
+  for(let n=1;n<=3&&dev;n++){
+    try{await new Promise(r=>setTimeout(r,1500));await openGatt();return}catch(e){log('Percobaan '+n+' gagal')}
+  }
+  setSt(false,'Terputus. Tekan Sambungkan.');
+}
+
+function onData(e){
+  buf+=dec.decode(e.target.value,{stream:true});
+  let i;
+  while((i=buf.indexOf('\n'))>=0){const l=buf.slice(0,i).trim();buf=buf.slice(i+1);if(l)handle(l)}
+  if(buf.length>400)buf='';
+}
+function handle(l){
+  if(l[0]==='{'){
+    try{const j=JSON.parse(l);if(j.alert)showAlert(j.alert);else update(j);return}catch(e){}
+  }
+  log('ESP: '+l);
+}
+function showAlert(t){
+  const a=$('alert');a.textContent='PERINGATAN: '+t;a.style.display='block';log('Peringatan: '+t);
+  clearTimeout(alertTimer);alertTimer=setTimeout(()=>a.style.display='none',10000);
+}
+function set(id,v,dec,zeroNone){$(id).textContent=(v===undefined||v===null||v<0||(zeroNone&&v===0))?'--':(dec?Number(v).toFixed(dec):v)}
+function update(j){
+  set('s',j.s);set('r',j.r);set('t',j.t);set('a',j.a,1,true);set('v',j.v,1,true);set('e',j.e);set('i',j.i);set('ep',j.ep);
+  $('rb').style.width=(j.r>0?Math.min(100,j.r/120):0)+'%';
+  $('cg').className='chip'+(j.g?' on':'');$('cg').textContent=j.g?'GPS fix':'GPS mencari';
+  $('cm').className='chip'+(j.m?' on':'');
+  const st=j.st;$('cs').textContent='Gaya: '+(st===undefined?'--':st<25?'santai':st<55?'normal':'agresif');
+}
+
+// kirim ke ESP32: teks ASCII per baris, dipecah 20 byte agar aman di MTU standar
+function clean(s,n){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[|\r\n]+/g,' ').replace(/[^\x20-\x7E]/g,'?').trim().slice(0,n);
+}
+function send(line){
+  if(!rx||!dev||!dev.gatt.connected){alert('Belum terhubung ke dashboard.');return}
+  line=String(line).replace(/[\r\n]+/g,' ').slice(0,190);
+  if(!line.trim())return;
+  const data=enc.encode(line+'\n');
+  q=q.then(async()=>{
+    for(let o=0;o<data.length;o+=20){
+      const c=data.slice(o,o+20);
+      if(rx.writeValueWithoutResponse)await rx.writeValueWithoutResponse(c);else await rx.writeValue(c);
+    }
+    log('Kirim: '+line);
+  }).catch(err=>log('Gagal kirim: '+err.message));
+}
+function sendMus(){send('MUS|'+($('mp').checked?1:0)+'|'+clean($('mt').value,40)+'|'+clean($('ma').value,40))}
+function sendNav(){send('NAV|'+$('na').value+'|'+clean($('nd').value,12)+'|'+clean($('nt').value,44)+'|'+clean($('ne').value,16))}
+function sendNtf(){send('NTF|'+clean($('fa').value,16)+'|'+clean($('fj').value,20)+'|'+clean($('fi').value,60))}
+function sendCall(){send('CALL|IN|'+clean($('cn').value,24))}
+$('tc').addEventListener('keydown',e=>{if(e.key==='Enter')send($('tc').value)});
+</script>
+</body>
+</html>
